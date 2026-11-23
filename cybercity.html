@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CyberCity : Empire 3D</title> 
 <script>
-document.write('<scr'+'ipt src="https://'+'://cloudflare.com"></scr'+'ipt>');
-document.write('<scr'+'ipt src="https://'+'://cloudflare.com"></scr'+'ipt>');
+function addJS(u) {
+  var s = document.createElement('script');
+  s.src = u;
+  document.head.appendChild(s);
+}
+addJS('https://' + '://unpkg.com');
+addJS('https://' + '://unpkg.com');
 </script>
 <style>
   * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
