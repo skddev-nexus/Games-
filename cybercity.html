@@ -205,7 +205,7 @@ function buildWorld() {
   dropZone.position.set(80, 0.12, 80); scene.add(dropZone);
 
   // 4 POINTS DE RÉAPPARITION (Checkpoints Bleus)
-  [[0, 42], [42, 0], [-42, 0], [0, -42]].forEach(([cx, cz]) => {
+  [[42, 0], [0, 42], [-42, 0], [0, -42]].forEach(([cx, cz]) => {
     const cp = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 0.2, 20), new THREE.MeshBasicMaterial({ color: 0x00f2fe }));
     cp.position.set(cx, 0.1, cz); scene.add(cp);
     checkpoints.push({ x: cx, z: cz, mesh: cp });
@@ -273,7 +273,7 @@ function makeCharacterMesh(shirtColor) {
 }
 
 function spawnBots() {
-  const spots = [, [-12, 12], [-20, 0],, [-35, -35], [35, -35], [-35, 35], [35, 35]];
+  const spots = [[12, 12], [-12, 12], [-20, 0], [20, 0], [-35, -35], [35, -35], [-35, 35], [35, 35]];
   spots.forEach(([bx, bz], i) => {
     const av = makeCharacterMesh(i < 4 ? 0x2563eb : 0xdc2626);
     av.mesh.position.set(bx, 0, bz);
