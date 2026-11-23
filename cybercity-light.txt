@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CYBER EMPIRE 3D</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  body { background: #050811; color: #fff; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; touch-action: none; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; pointer-events: none; z-index: 10; }
+  .panel { background: rgba(10, 15, 30, 0.8); border: 1px solid #00f2fe; border-radius: 10px; padding: 8px 12px; font-size: 13px; pointer-events: auto; }
+  .btn { background: #00f2fe; color: #050811; border: none; border-radius: 6px; padding: 6px 10px; font-weight: bold; cursor: pointer; margin-left: 5px; }
+  .btn-red { background: #ff3b5c; color: #fff; }
+  #controls { position: fixed; bottom: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: flex-end; pointer-events: none; z-index: 10; }
+  #joy-zone { width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(0,242,254,0.4); position: relative; pointer-events: auto; }
+  #joy-stick { width: 46px; height: 46px; border-radius: 50%; background: #00f2fe; position: absolute; top: 35px; left: 35px; opacity: 0.85; }
+  #actions { display: grid; grid-template-columns: repeat(2, 68px); gap: 10px; pointer-events: auto; }
+  .act-btn { height: 60px; border-radius: 14px; border: 2px solid #00f2fe; background: rgba(10,15,30,0.85); color: #fff; font-weight: bold; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .act-btn:active { transform: scale(0.92); background: #00f2fe; color: #050811; }
+  #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 30; align-items: center; justify-content: center; padding: 20px; }
+  .modal-box { background: #0d1528; border: 2px solid #00f2fe; border-radius: 14px; padding: 18px; width: 100%; max-width: 420px; }
+  textarea { width: 100%; height: 70px; background: #050811; color: #00f2fe; border: 1px solid #334155; border-radius: 6px; padding: 6px; font-size: 11px; margin: 6px 0; }
+  #death-screen { display: none; position: fixed; inset: 0; background: #fff; color: #1e293b; z-index: 50; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; transition: opacity 2.5s ease-in; }
+  #death-title { font-size: 32px; font-weight: 900; letter-spacing: 4px; opacity: 0; transform: translateY(20px); transition: all 3s ease; }
+  #death-sub { margin-top: 12px; font-size: 15px; color: #64748b; opacity: 0; transition: opacity 3s ease 1.5s; }
+  #msg { position: fixed; top: 65px; left: 50%; transform: translateX(-50%); background: rgba(0,242,254,0.2); border: 1px solid #00f2fe; padding: 6px 14px; border-radius: 20px; font-size: 13px; display: none; z-index: 15; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="panel">
+    ❤️ <span id="hp">100</span> | 💵 <span id="cash">500</span>$ | ⭐ <span id="wanted">0</span> | 👥 Gang: <span id="gang">0</span>
+  </div>
+  <div class="panel">
+    <button class="btn" onclick="openP2P()">🌐 P2P</button>
+    <button class="btn" id="sound-btn" onclick="toggleSound()">🔊</button>
+  </div>
+</div>
+
+<div id="msg"></div>
+
+<div id="controls">
+  <div id="joy-zone"><div id="joy-stick"></div></div>
+  <div id="actions">
+    <button class="act-btn" ontouchstart="shoot()" onclick="shoot()">🔫<br>TIRER</button>
+    <button class="act-btn" ontouchstart="interact()" onclick="interact()">🚗<br>ACTION</button>
+    <button class="act-btn" ontouchstart="recruit()" onclick="recruit()">🤝<br>GANG</button>
+    <button class="act-btn" ontouchstart="robBank()" onclick="robBank()">🏦<br>BRAQUER</button>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="modal-box">
+    <h3 style="color:#00f2fe;margin-bottom:8px;">🌐 Multijoueur Direct P2P (Sans serveur)</h3>
+    <p style="font-size:12px;color:#cbd5e1;">1. Joueur A clique sur <b>Créer Salon</b> et envoie le code au Joueur B.<br>2. Joueur B colle le code, clique <b>Rejoindre</b> et renvoie sa réponse au Joueur A.</p>
+    <button class="btn" style="margin:8px 0 0 0;" onclick="createOffer()">Créer Salon (Hôte)</button>
+    <button class="btn" onclick="createAnswer()">Rejoindre (Invité)</button>
+    <textarea id="p2p-out" placeholder="Ton code généré apparaîtra ici..." readonly></textarea>
+    <textarea id="p2p-in" placeholder="Colle ici le code reçu de ton ami..."></textarea>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;">
+      <button class="btn" onclick="applyRemote()">Valider Code Reçu</button>
+      <button class="btn btn-red" onclick="closeP2P()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div id="death-screen">
+  <div id="death-title">TU ES AU PARADIS</div>
+  <div id="death-sub">Respawn dans la ville en cours...</div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; });
+
+// Audio synthétique autonome
+let soundOn = true;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(freq, type, dur, vol=0.15) {
+  if (!soundOn) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + dur);
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + dur);
+}
+function toggleSound() {
+  soundOn = !soundOn;
+  document.getElementById('sound-btn').textContent = soundOn ? '🔊' : '🔇';
+}
+function notify(txt) {
+  const m = document.getElementById('msg');
+  m.textContent = txt; m.style.display = 'block';
+  clearTimeout(m._t); m._t = setTimeout(() => m.style.display = 'none', 2500);
+}
+
+// État du monde
+const player = { x: 0, y: 0, z: 0, angle: 0, hp: 100, cash: 500, wanted: 0, inVehicle: null, recoil: 0, dead: false };
+const bullets = [], particles = [], npcs = [], buildings = [], vehicles = [];
+let peer = null, dataChan = null, remotePlayer = null;
+
+// Génération de la ville 3D extrudée
+for (let gx = -3; gx <= 3; gx++) {
+  for (let gy = -3; gy <= 3; gy++) {
+    if (gx === 0 && gy === 0) continue;
+    const isBank = (gx === 1 && gy === 1) || (gx === -2 && gy === -1);
+    buildings.push({
+      x: gx * 360 + 60, y: gy * 360 + 60, w: 200, d: 200,
+      h: isBank ? 160 : 90 + Math.abs((gx * 37 + gy * 19) % 140),
+      color: isBank ? '#f59e0b' : '#1e293b',
+      neon: isBank ? '#fde047' : (gx % 2 === 0 ? '#00f2fe' : '#ec4899'),
+      isBank
+    });
+  }
+}
+
+// Véhicules (Voiture, Tank, Avion)
+vehicles.push({ type: 'car', name: 'Sportive Néon', x: 120, y: 40, z: 0, angle: 0, speed: 0, color: '#00f2fe', w: 46, d: 24, h: 18 });
+vehicles.push({ type: 'tank', name: 'Char Lourd', x: -160, y: 80, z: 0, angle: 0, speed: 0, color: '#22c55e', w: 58, d: 34, h: 24 });
+vehicles.push({ type: 'plane', name: 'Jet Supersonique', x: 0, y: -260, z: 0, angle: 0, speed: 0, color: '#f43f5e', w: 64, d: 54, h: 20 });
+
+// PNJ vivants
+for (let i = 0; i < 22; i++) {
+  npcs.push({
+    x: (Math.random() - 0.5) * 1800, y: (Math.random() - 0.5) * 1800,
+    angle: Math.random() * Math.PI * 2, hp: 50, ally: false, cop: i < 5,
+    color: i < 5 ? '#3b82f6' : '#a855f7'
+  });
+}
+
+// Joystick tactile + Clavier
+let joyVec = { x: 0, y: 0 };
+const joyZone = document.getElementById('joy-zone');
+const joyStick = document.getElementById('joy-stick');
+function handleJoy(e) {
+  const t = e.touches ? e.touches[0] : e;
+  const r = joyZone.getBoundingClientRect();
+  let dx = t.clientX - (r.left + 60), dy = t.clientY - (r.top + 60);
+  const dist = Math.min(40, Math.hypot(dx, dy));
+  const ang = Math.atan2(dy, dx);
+  joyVec.x = (Math.cos(ang) * dist) / 40;
+  joyVec.y = (Math.sin(ang) * dist) / 40;
+  joyStick.style.transform = `translate(${joyVec.x * 35}px, ${joyVec.y * 35}px)`;
+}
+joyZone.addEventListener('touchstart', handleJoy);
+joyZone.addEventListener('touchmove', e => { e.preventDefault(); handleJoy(e); });
+joyZone.addEventListener('touchend', () => { joyVec = { x: 0, y: 0 }; joyStick.style.transform = 'translate(0,0)'; });
+
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.code === 'Space') shoot(); if (e.key.toLowerCase() === 'e') interact(); });
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+// Actions de gameplay
+function shoot() {
+  if (player.dead) return;
+  player.recoil = 10;
+  const v = player.inVehicle;
+  const isTank = v && v.type === 'tank';
+  playTone(isTank ? 90 : 320, isTank ? 'sawtooth' : 'square', isTank ? 0.35 : 0.12, 0.2);
+  const ox = v ? v.x : player.x, oy = v ? v.y : player.y, oz = v ? v.z + 15 : 18;
+  const ang = v ? v.angle : player.angle;
+  bullets.push({ x: ox + Math.cos(ang)*30, y: oy + Math.sin(ang)*30, z: oz, vx: Math.cos(ang)*16, vy: Math.sin(ang)*16, life: 55, explosive: isTank, owner: 'player' });
+  spawnParticles(ox + Math.cos(ang)*28, oy + Math.sin(ang)*28, oz, '#fde047', 5);
+}
+
+function interact() {
+  if (player.dead) return;
+  if (player.inVehicle) {
+    player.x = player.inVehicle.x + 40; player.y = player.inVehicle.y; player.z = 0;
+    notify('Sorti de : ' + player.inVehicle.name);
+    player.inVehicle = null;
+    return;
+  }
+  for (const v of vehicles) {
+    if (Math.hypot(player.x - v.x, player.y - v.y) < 70) {
+      player.inVehicle = v;
+      notify('Véhicule : ' + v.name + (v.type === 'plane' ? ' (Accélère pour décoller !)' : ''));
+      return;
+    }
+  }
+  notify('Aucun véhicule à proximité');
+}
+
+function recruit() {
+  for (const n of npcs) {
+    if (!n.ally && !n.cop && Math.hypot(player.x - n.x, player.y - n.y) < 90) {
+      if (player.cash >= 100) {
+        player.cash -= 100; n.ally = true; n.color = '#10b981';
+        notify('Membre recruté dans ton gang (-100$) !');
+        playTone(600, 'sine', 0.2);
+      } else notify('Il faut 100$ pour recruter !');
+      return;
+    }
+  }
+  notify('Approche-toi d\'un civil violet pour le recruter');
+}
+
+function robBank() {
+  for (const b of buildings) {
+    if (b.isBank && player.x > b.x - 40 && player.x < b.x + b.w + 40 && player.y > b.y - 40 && player.y < b.y + b.d + 40) {
+      player.cash += 1500;
+      player.wanted = Math.min(5, player.wanted + 2);
+      playTone(880, 'triangle', 0.4);
+      spawnParticles(player.x, player.y, 30, '#fde047', 25);
+      notify('💰 BRAQUAGE RÉUSSI ! +1500$ (Police alertée !)');
+      return;
+    }
+  }
+  notify('Approche-toi d\'une Banque dorée pour braquer');
+}
+
+function spawnParticles(x, y, z, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y, z,
+      vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, vz: Math.random() * 6 + 2,
+      life: 25 + Math.random() * 15, color
+    });
+  }
+}
+
+function triggerDeath() {
+  if (player.dead) return;
+  player.dead = true;
+  playTone(55, 'sine', 2.8, 0.45); // Bruit sourd
+  const ds = document.getElementById('death-screen');
+  ds.style.display = 'flex';
+  requestAnimationFrame(() => {
+    ds.style.opacity = '1';
+    document.getElementById('death-title').style.opacity = '1';
+    document.getElementById('death-title').style.transform = 'translateY(0)';
+    document.getElementById('death-sub').style.opacity = '1';
+  });
+  setTimeout(() => {
+    player.hp = 100; player.wanted = 0; player.x = 0; player.y = 0; player.z = 0; player.inVehicle = null;
+    ds.style.opacity = '0';
+    setTimeout(() => {
+      ds.style.display = 'none';
+      document.getElementById('death-title').style.opacity = '0';
+      document.getElementById('death-sub').style.opacity = '0';
+      player.dead = false;
+    }, 1500);
+  }, 4500);
+}
+
+// Multijoueur WebRTC P2P sans serveur externe
+function openP2P() { document.getElementById('modal').style.display = 'flex'; }
+function closeP2P() { document.getElementById('modal').style.display = 'none'; }
+function setupPeer() {
+  peer = new RTCPeerConnection({ iceServers: [] });
+  peer.onicecandidate = e => { if (!e.candidate) document.getElementById('p2p-out').value = JSON.stringify(peer.localDescription); };
+  peer.ondatachannel = e => { dataChan = e.channel; bindChan(); };
+}
+function bindChan() {
+  dataChan.onopen = () => { notify('🌐 Joueur connecté en P2P !'); closeP2P(); };
+  dataChan.onmessage = e => { remotePlayer = JSON.parse(e.data); };
+}
+async function createOffer() {
+  setupPeer();
+  dataChan = peer.createDataChannel('gta');
+  bindChan();
+  const offer = await peer.createOffer();
+  await peer.setLocalDescription(offer);
+}
+async function createAnswer() {
+  setupPeer();
+  const raw = document.getElementById('p2p-in').value.trim();
+  if (!raw) return;
+  await peer.setRemoteDescription(JSON.parse(raw));
+  const ans = await peer.createAnswer();
+  await peer.setLocalDescription(ans);
+}
+async function applyRemote() {
+  const raw = document.getElementById('p2p-in').value.trim();
+  if (peer && raw) await peer.setRemoteDescription(JSON.parse(raw));
+}
+
+// Moteur de projection 3D isométrique/perspective extrudée
+function proj(x, y, z, camX, camY) {
+  const rx = x - camX, ry = y - camY;
+  return { sx: W / 2 + rx, sy: H / 2 + ry * 0.72 - z };
+}
+
+function drawBox3D(x, y, z, w, d, h, topCol, sideCol, neonCol, camX, camY) {
+  const p1 = proj(x, y, z, camX, camY);
+  const p2 = proj(x + w, y, z, camX, camY);
+  const p3 = proj(x + w, y + d, z, camX, camY);
+  const p4 = proj(x, y + d, z, camX, camY);
+  const t1 = proj(x, y, z + h, camX, camY);
+  const t2 = proj(x + w, y, z + h, camX, camY);
+  const t3 = proj(x + w, y + d, z + h, camX, camY);
+  const t4 = proj(x, y + d, z + h, camX, camY);
+
+  // Face avant (Sud)
+  ctx.fillStyle = sideCol;
+  ctx.beginPath(); ctx.moveTo(p4.sx, p4.sy); ctx.lineTo(p3.sx, p3.sy); ctx.lineTo(t3.sx, t3.sy); ctx.lineTo(t4.sx, t4.sy); ctx.closePath(); ctx.fill();
+  // Face droite (Est)
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.moveTo(p3.sx, p3.sy); ctx.lineTo(p2.sx, p2.sy); ctx.lineTo(t2.sx, t2.sy); ctx.lineTo(t3.sx, t3.sy); ctx.closePath(); ctx.fill();
+  // Toit
+  ctx.fillStyle = topCol;
+  ctx.beginPath(); ctx.moveTo(t1.sx, t1.sy); ctx.lineTo(t2.sx, t2.sy); ctx.lineTo(t3.sx, t3.sy); ctx.lineTo(t4.sx, t4.sy); ctx.closePath(); ctx.fill();
+  if (neonCol) {
+    ctx.strokeStyle = neonCol; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+
+// Boucle principale
+function loop() {
+  let mx = joyVec.x + (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['q'] || keys['arrowleft'] ? 1 : 0);
+  let my = joyVec.y + (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['z'] || keys['arrowup'] ? 1 : 0);
+  const mag = Math.hypot(mx, my);
+  if (mag > 1) { mx /= mag; my /= mag; }
+
+  if (!player.dead) {
+    if (player.inVehicle) {
+      const v = player.inVehicle;
+      if (mag > 0.1) {
+        v.angle = Math.atan2(my, mx);
+        const maxSpd = v.type === 'plane' ? 12 : (v.type === 'car' ? 8.5 : 4.5);
+        v.speed = Math.min(maxSpd, v.speed + 0.25);
+      } else {
+        v.speed *= 0.94;
+      }
+      v.x += Math.cos(v.angle) * v.speed;
+      v.y += Math.sin(v.angle) * v.speed;
+      if (v.type === 'plane') {
+        v.z = v.speed > 6 ? Math.min(180, v.z + 2) : Math.max(0, v.z - 2);
+      }
+      player.x = v.x; player.y = v.y; player.z = v.z; player.angle = v.angle;
+    } else if (mag > 0.1) {
+      player.angle = Math.atan2(my, mx);
+      player.x += mx * 4.2;
+      player.y += my * 4.2;
+    }
+  }
+  if (player.recoil > 0) player.recoil *= 0.8;
+
+  // Mise à jour balles & explosions
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.x += b.vx; b.y += b.vy; b.life--;
+    for (let j = npcs.length - 1; j >= 0; j--) {
+      const n = npcs[j];
+      if (!n.ally && Math.hypot(b.x - n.x, b.y - n.y) < 24) {
+        n.hp -= b.explosive ? 100 : 25;
+        b.life = 0;
+        spawnParticles(n.x, n.y, 15, '#ff3b5c', b.explosive ? 22 : 6);
+        if (n.hp <= 0) {
+          npcs.splice(j, 1);
+          player.cash += 75;
+          if (n.cop) player.wanted = Math.min(5, player.wanted + 1);
+          playTone(140, 'sawtooth', 0.25);
+        }
+      }
+    }
+    if (b.life <= 0) bullets.splice(i, 1);
+  }
+
+  // IA PNJ & Police
+  for (const n of npcs) {
+    if (n.ally) {
+      const d = Math.hypot(player.x - n.x, player.y - n.y);
+      if (d > 75) {
+        const a = Math.atan2(player.y - n.y, player.x - n.x);
+        n.x += Math.cos(a) * 3.8; n.y += Math.sin(a) * 3.8;
+      }
+    } else if (n.cop && player.wanted > 0 && !player.dead) {
+      const a = Math.atan2(player.y - n.y, player.x - n.x);
+      n.x += Math.cos(a) * 3.1; n.y += Math.sin(a) * 3.1;
+      if (Math.hypot(player.x - n.x, player.y - n.y) < 35 && player.z < 20) {
+        player.hp -= 0.4;
+        if (player.hp <= 0) { player.hp = 0; triggerDeath(); }
+      }
+    } else {
+      n.x += Math.cos(n.angle) * 1.2; n.y += Math.sin(n.angle) * 1.2;
+      if (Math.random() < 0.02) n.angle += (Math.random() - 0.5) * 2;
+    }
+  }
+
+  // Particules
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.z = Math.max(0, p.z + p.vz); p.vz -= 0.35; p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Envoi position P2P
+  if (dataChan && dataChan.readyState === 'open') {
+    dataChan.send(JSON.stringify({ x: player.x, y: player.y, z: player.z, angle: player.angle }));
+  }
+
+  // Rendu
+  ctx.fillStyle = '#070b19';
+  ctx.fillRect(0, 0, W, H);
+  const camX = player.x, camY = player.y - player.z * 0.5;
+
+  // Grille des routes néon
+  ctx.strokeStyle = 'rgba(0, 242, 254, 0.14)';
+  ctx.lineWidth = 2;
+  const startX = Math.floor((camX - W) / 180) * 180;
+  const startY = Math.floor((camY - H) / 180) * 180;
+  for (let gx = startX; gx < camX + W; gx += 180) {
+    const pA = proj(gx, camY - H, 0, camX, camY), pB = proj(gx, camY + H, 0, camX, camY);
+    ctx.beginPath(); ctx.moveTo(pA.sx, pA.sy); ctx.lineTo(pB.sx, pB.sy); ctx.stroke();
+  }
+  for (let gy = startY; gy < camY + H; gy += 180) {
+    const pA = proj(camX - W, gy, 0, camX, camY), pB = proj(camX + W, gy, 0, camX, camY);
+    ctx.beginPath(); ctx.moveTo(pA.sx, pA.sy); ctx.lineTo(pB.sx, pB.sy); ctx.stroke();
+  }
+
+  // Tri en profondeur (Painter's Algorithm 3D)
+  const renderList = [];
+  for (const b of buildings) renderList.push({ y: b.y + b.d, fn: () => drawBox3D(b.x, b.y, 0, b.w, b.d, b.h, b.color, '#111827', b.neon, camX, camY) });
+  for (const v of vehicles) renderList.push({ y: v.y + v.d, fn: () => {
+    if (v.z > 2) { const sh = proj(v.x, v.y, 0, camX, camY); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.ellipse(sh.sx, sh.sy, 26, 14, 0, 0, Math.PI*2); ctx.fill(); }
+    drawBox3D(v.x - v.w/2, v.y - v.d/2, v.z, v.w, v.d, v.h, v.color, '#1e293b', '#fff', camX, camY);
+  }});
+  for (const n of npcs) renderList.push({ y: n.y, fn: () => drawBox3D(n.x - 10, n.y - 10, 0, 20, 20, 34, n.color, '#0f172a', n.ally ? '#fde047' : null, camX, camY) });
+  if (!player.inVehicle) renderList.push({ y: player.y, fn: () => {
+    drawBox3D(player.x - 11, player.y - 11, player.z, 22, 22, 36, '#00f2fe', '#0284c7', '#fff', camX, camY);
+    const p = proj(player.x, player.y, player.z + 24, camX, camY);
+    const gunLen = 22 - player.recoil;
+    ctx.strokeStyle = '#fde047'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(p.sx, p.sy); ctx.lineTo(p.sx + Math.cos(player.angle)*gunLen, p.sy + Math.sin(player.angle)*gunLen*0.72); ctx.stroke();
+  }});
+  if (remotePlayer) renderList.push({ y: remotePlayer.y, fn: () => drawBox3D(remotePlayer.x - 11, remotePlayer.y - 11, remotePlayer.z, 22, 22, 36, '#ec4899', '#be185d', '#fde047', camX, camY) });
+
+  renderList.sort((a, b) => a.y - b.y).forEach(item => item.fn());
+
+  // Balles & Particules
+  for (const b of bullets) {
+    const p = proj(b.x, b.y, b.z, camX, camY);
+    ctx.fillStyle = b.explosive ? '#ff3b5c' : '#fde047';
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, b.explosive ? 6 : 3.5, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const pt of particles) {
+    const p = proj(pt.x, pt.y, pt.z, camX, camY);
+    ctx.fillStyle = pt.color; ctx.fillRect(p.sx - 3, p.sy - 3, 6, 6);
+  }
+
+  // HUD
+  document.getElementById('hp').textContent = Math.ceil(player.hp);
+  document.getElementById('cash').textContent = player.cash;
+  document.getElementById('wanted').textContent = '★'.repeat(player.wanted) || '0';
+  document.getElementById('gang').textContent = npcs.filter(n => n.ally).length;
+
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
